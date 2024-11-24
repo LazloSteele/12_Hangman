@@ -6,11 +6,24 @@ win_msg:			.asciiz "\nYou win!"
 invalid_msg:		.asciiz "\nInvalid input. Try again!\n"
 bye: 				.asciiz "\nToodles! ;)"
 
-hangman:			.asciiz "\n ___   you lose!\n|   | /\n|    \n|  /|\\\n|  / \\\n|_____\n\n"
+hangman:			.asciiz "\n ___            \n|   |  \n|    \n|     \n|     \n|_____\n\n"
 					
 					.align	2
+lose_loc1:			.word	5
 head_loc:			.word	30
+body_loc:			.word	36
+larm_loc:			.word	35
+rarm_loc:			.word	37
+lleg_loc:			.word	42
+rleg_loc:			.word	44
+
+					.align	0
 head_char:			.ascii "O"
+body_char:			.ascii "|"
+larmleg_char:		.ascii "/"
+rarmleg_char:		.ascii "\\"
+lose_msg:			.ascii "   you lose!"
+
 
 word_1:				.asciiz	"ABLAH"
 					.align	2
@@ -35,7 +48,7 @@ main:								#
 	la		$t0, word_array
 	lw		$t1, 0($t0)
 
-	li		$s0, 0					# 0 wrong guesses
+	li		$s0, -1					# 0 wrong guesses
 	move	$s1, $t1
 	jal		game_loop				# play the game!
 	
@@ -88,7 +101,11 @@ game_loop:
 	j		game_loop
 	
 game_over:
-	jr $ra
+	la		$a0, hangman
+	li		$v0, 4
+	syscall
+	
+	j		again
 	
 ####################################################################################################
 # function: game_loop
@@ -140,6 +157,12 @@ display_board:
 		beq		$t7, 1, you_win
 		beq		$t8, 1, no_hang
 		addi	$s0, $s0, 1
+		
+		move	$s3, $ra
+		jal		add_body_part
+		move	$ra, $s3
+		
+		# add call to check for current $s0 value to add body part to game display
 
 		no_hang:
 		jr		$ra
@@ -193,6 +216,57 @@ validate_input:								#
 											#
 		jr		$ra							#
 											#
+####################################################################################################
+# function: invalid_play
+# purpose: to raise an invalid play flag and return to caller
+# registers used:
+####################################################################################################
+add_body_part:
+	la $t1, hangman
+
+	beq		$s0, 1, add_head
+	beq		$s0, 2, add_body
+	beq		$s0, 3, add_l_arm
+	beq		$s0, 4, add_r_arm
+	beq		$s0, 5, add_l_leg
+	beq		$s0, 6, add_r_leg
+	
+	add_head:
+		lw	$t0, head_loc
+		add $t1, $t1, $t0
+		lb $t2, head_char
+		sb $t2, 0($t1)
+		jr	$ra	
+	add_body:
+		lw	$t0, body_loc
+		add $t1, $t1, $t0
+		lb $t2, body_char
+		sb $t2, 0($t1)
+		jr	$ra	
+	add_l_arm:
+		lw	$t0, larm_loc
+		add $t1, $t1, $t0
+		lb $t2, larmleg_char
+		sb $t2, 0($t1)
+		jr	$ra	
+	add_r_arm:
+		lw	$t0, rarm_loc
+		add $t1, $t1, $t0
+		lb $t2, rarmleg_char
+		sb $t2, 0($t1)
+		jr	$ra	
+	add_l_leg:
+		lw	$t0, lleg_loc
+		add $t1, $t1, $t0
+		lb $t2, larmleg_char
+		sb $t2, 0($t1)
+		jr	$ra	
+	add_r_leg:
+		lw	$t0, rleg_loc
+		add $t1, $t1, $t0
+		lb $t2, rarmleg_char
+		sb $t2, 0($t1)
+					
 ####################################################################################################
 # function: invalid_play
 # purpose: to raise an invalid play flag and return to caller
