@@ -2,6 +2,7 @@
 welcome_msg:		.asciiz "\nI am the hangman. Let's play a game...\n"
 player_prompt:		.asciiz "\n\nPlease enter a letter > "
 repeat_msg:			.asciiz "\nGo again? Y/N > "
+win_msg:			.asciiz "\nYou win!"
 invalid_msg:		.asciiz "\nInvalid input. Try again!\n"
 bye: 				.asciiz "\nToodles! ;)"
 
@@ -82,7 +83,7 @@ game_loop:
 	move	$ra, $s2					# restore return address for nesting
 	beq		$v1, 1, game_loop			# if invalid play, try again
 	
-	bgt		$s0, 6, game_over
+	beq		$s0, 6, game_over
 	
 	j		game_loop
 	
@@ -100,7 +101,8 @@ display_board:
 	syscall
 	
 	la	$t0, word_1
-	li	$t8, 0
+	li	$t7, 1							# do you win?
+	li	$t8, 0							# letter in word?
 	
 	word_length_loop:	
 		lb	$t1, 0($t0)
@@ -116,6 +118,7 @@ display_board:
 		beq $t1, $t2, letter_guessed
 		
 		li		$a0, '_'
+		li		$t7, 0
 		
 		j	print_char
 		
@@ -134,10 +137,19 @@ display_board:
 		
 			j	word_length_loop
 	word_loop_done:
+		beq		$t7, 1, you_win
 		beq		$t8, 1, no_hang
 		addi	$s0, $s0, 1
+
 		no_hang:
 		jr		$ra
+		
+		you_win:
+			la	$a0, win_msg
+			li	$v0, 4
+			syscall
+			
+			j again
 ####################################################################################################
 # function: get_input
 # purpose: to get the column the player would like to drop their token in.
