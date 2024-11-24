@@ -1,5 +1,5 @@
 .data
-welcome_msg:	.asciiz "\nWelcome to Connect Four. Let's start a two player game...\n"
+welcome_msg:	.asciiz "\nI am the hangman. Let's play a game...\n"
 repeat_msg:		.asciiz "\nGo again? Y/N > "
 invalid_msg:	.asciiz "\nInvalid input. Try again!\n"
 bye: 			.asciiz "\nToodles! ;)"
@@ -28,8 +28,44 @@ main:								#
 	jal		welcome					# welcome the user
 
 	li		$a0, 0					# 0 wrong guesses
-	j		game_loop_prep			# play the game!
-		
+	jal		game_loop				# play the game!
+	
+	j		again
+	
+####################################################################################################
+# function: welcome
+# purpose: to welcome the user to our program
+# registers used:
+#	$v0 - syscall codes
+#	$a0 - passing arugments to subroutines
+#	$ra	- return address
+####################################################################################################	
+welcome:							# 
+	la	$a0, welcome_msg			# load welcome message
+	li	$v0, 4						# 
+	syscall							# and print
+									#
+	jr	$ra							# return to caller
+									#
+####################################################################################################
+# function: game_loop
+# purpose: to get the column the player would like to drop their token in.
+# registers used:
+####################################################################################################
+game_loop:
+	move	$s0, $ra					# save return address for nesting
+	jal		display_board				# and validate
+	move	$ra, $s0					# restore return address for nesting
+	
+	jr $ra
+	
+####################################################################################################
+# function: game_loop
+# purpose: to get the column the player would like to drop their token in.
+# registers used:
+####################################################################################################
+display_board:
+	jr		$ra
 ####################################################################################################
 # function: get_input
 # purpose: to get the column the player would like to drop their token in.
@@ -134,15 +170,16 @@ again:							#
 	la $t0, buffer				#
 	lb $t0, 0($t0)				#
 	li $t1, 'Y'					# store the value of ASCII 'Y' for comparison
-	beq $t0, $t1, re_enter		# If yes, go back to the start of main
+	beq $t0, $t1, main			# If yes, go back to the start of main
 	li $t1, 'N'					# store the value of ASCII 'N' for comparison
 	beq $t0, $t1, end			# If no, goodbye!
-	j again_invalid				# if invalid try again...
 								#
 	again_invalid:				#
 		la $a0, invalid_msg		#
 		li $v0, 4				#
 		syscall					#
+								#
+		j again					#
 								#
 ####################################################################################################
 # function: end
