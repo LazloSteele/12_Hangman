@@ -1,18 +1,20 @@
 .data
-welcome_msg:	.asciiz "\nI am the hangman. Let's play a game...\n"
-repeat_msg:		.asciiz "\nGo again? Y/N > "
-invalid_msg:	.asciiz "\nInvalid input. Try again!\n"
-bye: 			.asciiz "\nToodles! ;)"
+welcome_msg:		.asciiz "\nI am the hangman. Let's play a game...\n"
+player_prompt:		.asciiz "\n\nPlease enter a letter > "
+repeat_msg:			.asciiz "\nGo again? Y/N > "
+invalid_msg:		.asciiz "\nInvalid input. Try again!\n"
+bye: 				.asciiz "\nToodles! ;)"
 
-hangman:		.asciiz "\n ___   you lose!\n|   | /\n|    \n|  /|\\\n|  / \\\n|_____"
+hangman:			.asciiz "\n ___   you lose!\n|   | /\n|    \n|  /|\\\n|  / \\\n|_____\n\n"
 
-head_loc:		.word	30
-head_char:		.ascii "O"
+head_loc:			.word	30
+head_char:			.ascii "O"
 
-word_1:		.asciiz	"blah"
-word_array:	.word	word_1
+word_1:				.asciiz	"BLAH"
+word_array:			.word	word_1
 
-buffer:			.space	2
+buffer:				.space	2
+guessed_letters:	.space	26
 
 .globl main
 
@@ -27,7 +29,11 @@ buffer:			.space	2
 main:								#
 	jal		welcome					# welcome the user
 
+	la		$t0, word_array
+	lw		$t1, 0($t0)
+
 	li		$a0, 0					# 0 wrong guesses
+	move	$a1, $t1
 	jal		game_loop				# play the game!
 	
 	j		again
@@ -53,10 +59,17 @@ welcome:							#
 # registers used:
 ####################################################################################################
 game_loop:
-	move	$s0, $ra					# save return address for nesting
+	move	$s0, $a0					# wrong guesses
+	move	$s1, $a1					# secret word scream real loud
+										#
+	move	$s2, $ra					# save return address for nesting
 	jal		display_board				# and validate
-	move	$ra, $s0					# restore return address for nesting
+	move	$ra, $s2					# restore return address for nesting
 	
+	move	$s2, $ra					# save return address for nesting
+	jal		get_input					# 
+	move	$ra, $s2					# restore return address for nesting
+
 	jr $ra
 	
 ####################################################################################################
@@ -65,13 +78,51 @@ game_loop:
 # registers used:
 ####################################################################################################
 display_board:
-	jr		$ra
+	la		$a0, hangman
+	li		$v0, 4
+	syscall
+	
+	la	$t0, word_1
+	
+	word_length_loop:	
+		lb	$t1, 0($t0)
+		beq	$t1, 0, word_loop_done
+
+		li		$t2, 'A'				# subtract 'A' to get shift offset for alphabet
+		sub		$t2, $t1, $t2			#
+				
+		la	$t3, guessed_letters
+		add	$t3, $t3, $t2
+		lb	$t2, 0($t3)					# to pull whether the letter has been guessed
+		
+		beq $t1, $t2, letter_guessed
+		
+		li		$a0, '_'
+		
+		j	print_char
+		
+		letter_guessed:
+			move	$a0, $t1
+		
+		print_char:
+			li		$v0, 11
+			syscall
+			
+			li		$a0, ' '
+			syscall
+			
+			addi	$t0, $t0, 1
+		
+			j	word_length_loop
+	word_loop_done:
+		jr		$ra
 ####################################################################################################
 # function: get_input
 # purpose: to get the column the player would like to drop their token in.
 # registers used:
 ####################################################################################################
 get_input:									#
+		la		$a0, player_prompt			#
 		li		$v0, 4						#
 		syscall								# print player prompt
 											#
