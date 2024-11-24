@@ -6,11 +6,13 @@ invalid_msg:		.asciiz "\nInvalid input. Try again!\n"
 bye: 				.asciiz "\nToodles! ;)"
 
 hangman:			.asciiz "\n ___   you lose!\n|   | /\n|    \n|  /|\\\n|  / \\\n|_____\n\n"
-
+					
+					.align	2
 head_loc:			.word	30
 head_char:			.ascii "O"
 
-word_1:				.asciiz	"BLAH"
+word_1:				.asciiz	"ABLAH"
+					.align	2
 word_array:			.word	word_1
 
 buffer:				.space	2
@@ -32,8 +34,8 @@ main:								#
 	la		$t0, word_array
 	lw		$t1, 0($t0)
 
-	li		$a0, 0					# 0 wrong guesses
-	move	$a1, $t1
+	li		$s0, 0					# 0 wrong guesses
+	move	$s1, $t1
 	jal		game_loop				# play the game!
 	
 	j		again
@@ -59,9 +61,6 @@ welcome:							#
 # registers used:
 ####################################################################################################
 game_loop:
-	move	$s0, $a0					# wrong guesses
-	move	$s1, $a1					# secret word scream real loud
-										#
 	move	$s2, $ra					# save return address for nesting
 	jal		display_board				# and validate
 	move	$ra, $s2					# restore return address for nesting
@@ -70,6 +69,24 @@ game_loop:
 	jal		get_input					# 
 	move	$ra, $s2					# restore return address for nesting
 
+	move	$s2, $ra					# save return address for nesting
+	la		$a0, buffer					# move returned user input to argument
+	jal		upper						# and validate
+	la		$t0, buffer
+	lb		$v0, 0($t0)
+	move	$ra, $s2					# restore return address for nesting
+	
+	move	$s2, $ra					# save return address for nesting
+	move	$a0, $v0					# move returned user input to argument
+	jal		validate_input				# and validate
+	move	$ra, $s2					# restore return address for nesting
+	beq		$v1, 1, game_loop			# if invalid play, try again
+	
+	bgt		$s0, 6, game_over
+	
+	j		game_loop
+	
+game_over:
 	jr $ra
 	
 ####################################################################################################
@@ -83,6 +100,7 @@ display_board:
 	syscall
 	
 	la	$t0, word_1
+	li	$t8, 0
 	
 	word_length_loop:	
 		lb	$t1, 0($t0)
@@ -103,6 +121,7 @@ display_board:
 		
 		letter_guessed:
 			move	$a0, $t1
+			li		$t8, 1
 		
 		print_char:
 			li		$v0, 11
@@ -115,6 +134,9 @@ display_board:
 		
 			j	word_length_loop
 	word_loop_done:
+		beq		$t8, 1, no_hang
+		addi	$s0, $s0, 1
+		no_hang:
 		jr		$ra
 ####################################################################################################
 # function: get_input
@@ -133,7 +155,32 @@ get_input:									#
 											#
 		lb		$v0, 0($a0)					# load first byte from buffer
 		jr		$ra							#
-		
+											#
+####################################################################################################
+# function: validate_input
+# purpose: to ensure input is a valid column.
+# registers used:
+####################################################################################################
+validate_input:								#
+		move	$t0, $a0					#
+											#
+		li		$t1, 'Z'					#
+		bgt 	$t0, $t1, invalid_play		# if it is greater than '4' then invalid
+		li		$t1, 'A'					# 
+		blt 	$t0, $t1, invalid_play		# if it is less than '1' then invalid
+											#
+		sub		$t2, $t0, $t1				# get index of letter in alphabet
+											#
+		la		$t3, guessed_letters		#
+		add		$t3, $t3, $t2				#
+		lb		$t4, 0($t3)					#
+		beq		$t0, $t4, invalid_play		#
+		sb		$t0, 0($t3)					#
+											#		
+		move	$v0, $t0					# return the validated user input value
+											#
+		jr		$ra							#
+											#
 ####################################################################################################
 # function: invalid_play
 # purpose: to raise an invalid play flag and return to caller
@@ -181,7 +228,6 @@ reset_buffer:									#
 #	%message - message to be printed
 ####################################################################################################		
 upper:							#
-	move $s0, $ra				#
 	move $t0, $a0				# load the buffer address
 	li $t1, 'a'					# lower case a to compare
 	upper_loop:					#
@@ -193,7 +239,6 @@ upper:							#
 			sb $t2, 0($t0)		# store byte
 		addi $t0, $t0, 1		# next byte
 		bne $t2, 0, upper_loop	# if not end of buffer go again!
-	move $ra, $s0				#
 	jr $ra						#
 								#
 ####################################################################################################
